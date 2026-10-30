@@ -5,6 +5,11 @@ class Player:
     def __init__(self, x, y):
         self.x = int(x)
         self.y = int(y)
+
+        # remember where the player started so we can send them back here
+        self.start_x = int(x)
+        self.start_y = int(y)
+
         self.player_size = 10
         self.rect = pygame.Rect(self.x, self.y, self.player_size, self.player_size)
         self.color = (250, 120, 60)
@@ -49,7 +54,7 @@ class Player:
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)  
 
-        
+
 
     # updates player position while moving
     def update(self):
@@ -94,3 +99,45 @@ class Player:
             self.up_pressed = True
         elif dy > self.speed:
             self.down_pressed = True
+
+    # builds a rectangle for every wall that still exists in a cell
+    def get_wall_rects(self, cell, tile, thickness):
+        rects = []
+        # top-left corner of the cell in pixels
+        x, y = cell.x * tile, cell.y * tile
+        # walls are drawn centered on the cell edge, so go half the thickness each way
+        half = thickness // 2
+        if cell.walls['top']:
+            rects.append(pygame.Rect(x - half, y - half, tile + thickness, thickness))
+        if cell.walls['bottom']:
+            rects.append(pygame.Rect(x - half, y + tile - half, tile + thickness, thickness))
+        if cell.walls['left']:
+            rects.append(pygame.Rect(x - half, y - half, thickness, tile + thickness))
+        if cell.walls['right']:
+            rects.append(pygame.Rect(x + tile - half, y - half, thickness, tile + thickness))
+        return rects
+
+    # returns True if the player's square overlaps any wall
+    def touching_wall(self, tile, grid_cells, thickness):
+        # which cell is the center of the player in?
+        player_cell_x = self.rect.centerx // tile
+        player_cell_y = self.rect.centery // tile
+        for cell in grid_cells:
+            # only check the player's cell and the cells right next to it
+            if abs(cell.x - player_cell_x) <= 1 and abs(cell.y - player_cell_y) <= 1:
+                for wall in self.get_wall_rects(cell, tile, thickness):
+                    # does the player's square overlap this wall?
+                    if self.rect.colliderect(wall):
+                        return True
+        return False
+
+    # puts the player back at the starting position
+    def reset_position(self):
+        self.x = self.start_x
+        self.y = self.start_y
+        self.rect = pygame.Rect(self.x, self.y, self.player_size, self.player_size)
+        # stop any movement that was in progress
+        self.left_pressed = False
+        self.right_pressed = False
+        self.up_pressed = False
+        self.down_pressed = False

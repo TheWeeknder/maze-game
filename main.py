@@ -89,18 +89,18 @@ class Main():
             if not self.game_over:
                 # set the movement flags from the mouse position
                 player.follow_mouse(pygame.mouse.get_pos())
-                # cancel any direction that is blocked by a wall
-                player.check_move(tile, maze.grid_cells, maze.thickness)
 
             # check every frame if the player has reached the gate
             if game.is_game_over(player):
-                # flag the game as finished (shows "You Win!!" and stops the timer)
                 self.game_over = True
-                # stop the player from moving any further
                 player.left_pressed = False
                 player.right_pressed = False
                 player.up_pressed = False
                 player.down_pressed = False
+
+            # if the player touches a wall, send them back to the start
+            if not self.game_over and player.touching_wall(tile, maze.grid_cells, maze.thickness):
+                player.reset_position()
 
             self._draw(maze, tile, player, game, clock)
             self.FPS.tick(60)
