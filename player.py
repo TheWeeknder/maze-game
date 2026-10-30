@@ -49,6 +49,8 @@ class Player:
     def draw(self, screen):
         pygame.draw.rect(screen, self.color, self.rect)  
 
+        
+
     # updates player position while moving
     def update(self):
         self.velX = 0
@@ -64,3 +66,31 @@ class Player:
         self.x += self.velX
         self.y += self.velY
         self.rect = pygame.Rect(int(self.x), int(self.y), self.player_size, self.player_size)
+
+    # sets the movement flags based on where the mouse is
+    def follow_mouse(self, mouse_pos):
+        # start each frame with no movement
+        self.left_pressed = False
+        self.right_pressed = False
+        self.up_pressed = False
+        self.down_pressed = False
+
+        # find the center of the player square
+        center_x = self.x + self.player_size / 2
+        center_y = self.y + self.player_size / 2
+
+        # how far the mouse is from the player on each axis
+        dx = mouse_pos[0] - center_x
+        dy = mouse_pos[1] - center_y
+
+        # only move if the mouse is farther away than one step (self.speed)
+        # this "dead zone" stops the player from jittering back and forth
+        if dx < -self.speed:
+            self.left_pressed = True
+        elif dx > self.speed:
+            self.right_pressed = True
+
+        if dy < -self.speed:
+            self.up_pressed = True
+        elif dy > self.speed:
+            self.down_pressed = True

@@ -23,10 +23,14 @@ class Game:
         msg = self.font.render('You Win!!', True, self.message_color)
         return msg
 
-    # checks if player reached the goal point
+    # checks if the player has reached the goal point
     def is_game_over(self, player):
-        goal_cell_abs_x, goal_cell_abs_y = self.goal_cell.x * self.tile, self.goal_cell.y * self.tile
-        if player.x >= goal_cell_abs_x and player.y >= goal_cell_abs_y:
-            return True
-        else:
-            return False
+        # build a rectangle that covers the whole goal cell
+        goal_rect = pygame.Rect(
+            self.goal_cell.x * self.tile,   # left edge of the goal cell
+            self.goal_cell.y * self.tile,   # top edge of the goal cell
+            self.tile,                      # width of the cell
+            self.tile                       # height of the cell
+        )
+        # the player wins once the center of their square is inside that cell
+        return goal_rect.collidepoint(player.rect.center)
