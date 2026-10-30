@@ -23,8 +23,11 @@ class Main():
         self.game_over = False
         self.failed = False
         # seconds the player has to finish the maze
-        self.time_limit = 120
+        self.time_limit = 30
         self.FPS = pygame.time.Clock()
+
+        # set to True to send the player back to the start when they touch a wall
+        self.walls_reset = False
 
     # works out how much to scale the game so it fits the monitor
     def get_scale_and_offset(self):
@@ -70,7 +73,8 @@ class Main():
             clock.stop_timer()
         else:
             clock.update_timer()
-        self.screen.blit(clock.display_timer(), (625,200))
+        # show the countdown instead of the elapsed time
+        self.screen.blit(clock.display_countdown(self.time_limit), (625,200))
 
         # draw the jumpscare on top of everything
         if self.failed:
@@ -135,6 +139,8 @@ class Main():
             if not self.game_over and not self.failed:
                 # set the movement flags from the mouse position
                 player.follow_mouse(self.get_game_mouse())
+                # cancel any direction that is blocked by a wall (you "feel" the walls)
+                player.check_move(tile, maze.grid_cells, maze.thickness)
 
             # check if the player has reached the gate (only the first time)
             if not self.failed and not self.game_over and game.is_game_over(player):
@@ -146,8 +152,8 @@ class Main():
                 # start the congratulations screen
                 win_screen.trigger()
 
-            # if the player touches a wall, send them back to the start
-            if not self.game_over and not self.failed and player.touching_wall(tile, maze.grid_cells, maze.thickness):
+            # if the player touches a wall, send them back to the start (only when walls are on)
+            if self.walls_reset and not self.game_over and not self.failed and player.touching_wall(tile, maze.grid_cells, maze.thickness):
                 player.reset_position()
 
             # if time runs out before the player wins, trigger the jumpscare

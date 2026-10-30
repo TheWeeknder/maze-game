@@ -19,7 +19,7 @@ class Player:
         self.right_pressed = False
         self.up_pressed = False
         self.down_pressed = False
-        self.speed = 4
+        self.speed = 2.5
 
     # get current cell position of the player
     def get_current_cell(self, x, y, grid_cells):
@@ -27,27 +27,34 @@ class Player:
             if cell.x == x and cell.y == y:
                 return cell
 
-    # stops player to pass through walls
+    # stops player from passing through walls
     def check_move(self, tile, grid_cells, thickness):
+        # which cell the player is in
         current_cell_x, current_cell_y = self.x // tile, self.y // tile
         current_cell = self.get_current_cell(current_cell_x, current_cell_y, grid_cells)
+        # top-left corner of that cell in pixels
         current_cell_abs_x, current_cell_abs_y = current_cell_x * tile, current_cell_y * tile
-        if self.left_pressed:
-            if current_cell.walls['left']:
-                if self.x <= current_cell_abs_x + thickness:
-                    self.left_pressed = False
-        if self.right_pressed:
-            if current_cell.walls['right']:
-                if self.x >= current_cell_abs_x + tile - (self.player_size + thickness):
-                    self.right_pressed = False
-        if self.up_pressed:
-            if current_cell.walls['top']:
-                if self.y <= current_cell_abs_y + thickness:
-                    self.up_pressed = False
-        if self.down_pressed:
-            if current_cell.walls['bottom']:
-                if self.y >= current_cell_abs_y + tile - (self.player_size + thickness):
-                    self.down_pressed = False
+
+        # how close the player can get to each wall
+        left_limit = current_cell_abs_x + thickness
+        right_limit = current_cell_abs_x + tile - (self.player_size + thickness)
+        top_limit = current_cell_abs_y + thickness
+        bottom_limit = current_cell_abs_y + tile - (self.player_size + thickness)
+
+        # if there is a wall and the player would reach it this frame,
+        # stop the movement and snap the player right up against the wall
+        if self.left_pressed and current_cell.walls['left'] and self.x - self.speed <= left_limit:
+            self.left_pressed = False
+            self.x = max(self.x, left_limit)
+        if self.right_pressed and current_cell.walls['right'] and self.x + self.speed >= right_limit:
+            self.right_pressed = False
+            self.x = min(self.x, right_limit)
+        if self.up_pressed and current_cell.walls['top'] and self.y - self.speed <= top_limit:
+            self.up_pressed = False
+            self.y = max(self.y, top_limit)
+        if self.down_pressed and current_cell.walls['bottom'] and self.y + self.speed >= bottom_limit:
+            self.down_pressed = False
+            self.y = min(self.y, bottom_limit)
 
 
     # drawing player to the screen
