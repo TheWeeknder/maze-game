@@ -6,6 +6,7 @@ from game import Game
 from clock import Clock
 
 from jumpscare import Jumpscare
+from winscreen import WinScreen
 
 pygame.init()
 pygame.font.init()
@@ -22,7 +23,7 @@ class Main():
         self.game_over = False
         self.failed = False
         # seconds the player has to finish the maze
-        self.time_limit = 60
+        self.time_limit = 120
         self.FPS = pygame.time.Clock()
 
     # works out how much to scale the game so it fits the monitor
@@ -51,7 +52,7 @@ class Main():
         self.screen.blit(instructions3,(630,362))
 
     # draws all configs; maze, player, instructions, and time
-    def _draw(self, maze, tile, player, game, clock, jumpscare):
+    def _draw(self, maze, tile, player, game, clock, jumpscare, win_screen):
         # draw maze
         [cell.draw(self.screen, tile) for cell in maze.grid_cells]
         # add a goal point to reach
@@ -75,6 +76,9 @@ class Main():
         if self.failed:
             # the jumpscare draws straight onto the full monitor
             jumpscare.draw(self.window)
+        elif self.game_over and win_screen.is_showing():
+            # the congratulations image draws straight onto the full monitor
+            win_screen.draw(self.window)
         else:
             # scale the game up and center it on the monitor
             scale, offset, new_size = self.get_scale_and_offset()
@@ -84,66 +88,63 @@ class Main():
         pygame.display.flip()
 
     # main game loop
+    # main game loop
     def main(self, frame_size, tile):
         cols, rows = frame_size[0] // tile, frame_size[-1] // tile
-        maze = Maze(cols, rows)
-        game = Game(maze.grid_cells[-1], tile)
-        player = Player(tile // 3, tile // 3)
-        clock = Clock()
-
         jumpscare = Jumpscare(self.window.get_size())
+        win_screen = WinScreen(self.window.get_size())
 
-        maze.generate_maze()
-        clock.start_timer()
+        # builds a brand new maze, goal, player and timer
+        # (used at the start and every time the player clicks "Continue?")
+        def new_round():
+            maze = Maze(cols, rows)
+            game = Game(maze.grid_cells[-1], tile)
+            player = Player(tile // 3, tile // 3)
+            clock = Clock()
+            maze.generate_maze()
+            clock.start_timer()
+            return maze, game, player, clock
+
+        maze, game, player, clock = new_round()
+
         while self.running:
             self.screen.fill("gray")
-            self.screen.fill( pygame.Color("darkslategray"), (603, 0, 752, 752))
+            self.screen.fill(pygame.Color("darkslategray"), (603, 0, 752, 752))
             for event in pygame.event.get():
-                # F11 switches between fullscreen and windowed
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
-                    pygame.display.toggle_fullscreen()
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
                 # Esc closes the game
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
-            # # if keys were pressed still
-            # if event.type == pygame.KEYDOWN:
-            #     if not self.game_over:
-            #         if event.key == pygame.K_LEFT:
-            #             player.left_pressed = True
-            #         if event.key == pygame.K_RIGHT:
-            #             player.right_pressed = True
-            #         if event.key == pygame.K_UP:
-            #             player.up_pressed = True
-            #         if event.key == pygame.K_DOWN:
-            #             player.down_pressed = True
-            #         player.check_move(tile, maze.grid_cells, maze.thickness)
-            # # if pressed key released
-            # if event.type == pygame.KEYUP:
-            #     if not self.game_over:
-            #         if event.key == pygame.K_LEFT:
-            #             player.left_pressed = False
-            #         if event.key == pygame.K_RIGHT:
-            #             player.right_pressed = False
-            #         if event.key == pygame.K_UP:
-            #             player.up_pressed = False
-            #         if event.key == pygame.K_DOWN:
-            #             player.down_pressed = False
-            #         player.check_move(tile, maze.grid_cells, maze.thickness)
-            # move the player toward the mouse every frame
+                # left-click on the buttons shown after the jumpscare
+                if self.failed and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    choice = jumpscare.handle_click(event.pos)
+                    if choice == 'exit':
+                        pygame.quit()
+                        sys.exit()
+                    elif choice == 'continue':
+                        # start over with a fresh maze, player and timer
+                        maze, game, player, clock = new_round()
+                        self.failed = False
+                        self.game_over = False
+                        jumpscare.reset()
 
             # only let the player move while the game is still going
             if not self.game_over and not self.failed:
                 # set the movement flags from the mouse position
                 player.follow_mouse(self.get_game_mouse())
 
-            # check if the player has reached the gate
-            if not self.failed and game.is_game_over(player):
+            # check if the player has reached the gate (only the first time)
+            if not self.failed and not self.game_over and game.is_game_over(player):
                 self.game_over = True
                 player.left_pressed = False
                 player.right_pressed = False
                 player.up_pressed = False
                 player.down_pressed = False
+                # start the congratulations screen
+                win_screen.trigger()
 
             # if the player touches a wall, send them back to the start
             if not self.game_over and not self.failed and player.touching_wall(tile, maze.grid_cells, maze.thickness):
@@ -160,7 +161,21 @@ class Main():
                 # start the jumpscare
                 jumpscare.trigger()
 
-            self._draw(maze, tile, player, game, clock, jumpscare)
+            # left-click on the buttons shown after winning
+            if self.game_over and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                choice = win_screen.handle_click(event.pos)
+                if choice == 'exit':
+                    pygame.quit()
+                    sys.exit()
+                elif choice == 'continue':
+                    # start over with a fresh maze, player and timer
+                    maze, game, player, clock = new_round()
+                    self.failed = False
+                    self.game_over = False
+                    jumpscare.reset()
+                    win_screen.reset()
+
+            self._draw(maze, tile, player, game, clock, jumpscare, win_screen)
             self.FPS.tick(60)
 # main.py
 

@@ -13,9 +13,9 @@ class Jumpscare:
         self.font = pygame.font.SysFont("impact", 50)
 
         # if you add img/jumpscare.png, it will be used instead of the drawn face
-        if os.path.exists('img/jumpscare.png'):
+        if os.path.exists('img/loser.jpg'):
             # keep the original so we can rescale it later without losing quality
-            self.raw_image = pygame.image.load('img/jumpscare.png')
+            self.raw_image = pygame.image.load('img/loser.jpg')
         self.resize(screen_size)
 
         # if you add sounds/scream.wav (or .ogg), it plays when the jumpscare starts
@@ -49,13 +49,11 @@ class Jumpscare:
 
         # after the jumpscare is over, show a plain "time's up" screen
         if elapsed > self.duration:
-            screen.fill((0, 0, 0))
-            text = self.font.render("TIME'S UP!", True, (200, 0, 0))
-            screen.blit(text, text.get_rect(center=(w // 2, h // 2)))
+            self.draw_menu(screen)
             return
 
         # random shake offset so the picture jitters
-        ox, oy = random.randint(-12, 12), random.randint(-12, 12)
+        ox, oy = random.randint(0, 0), random.randint(0, 0)
 
         # use your own image if one was loaded
         if self.image:
@@ -83,3 +81,51 @@ class Jumpscare:
         bottom = [(w * 0.85 - i * step_w + ox, h * 0.92 - (h * 0.08 if i % 2 else 0) + oy)
                   for i in range(steps + 1)]
         pygame.draw.polygon(screen, (255, 255, 255), top + bottom)
+
+    # clears the jumpscare so it can play again after a restart
+    def reset(self):
+        self.start_ms = None
+        # stop the scream if it is still playing
+        if self.sound:
+            self.sound.stop()
+
+    # True once the jumpscare is over and the buttons are on screen
+    def is_menu_showing(self):
+        return self.start_ms is not None and pygame.time.get_ticks() - self.start_ms > self.duration
+
+    # returns the two button rectangles, centered on the screen
+    def get_buttons(self):
+        w, h = self.screen_size
+        button_w, button_h = 320, 80
+        continue_rect = pygame.Rect(0, 0, button_w, button_h)
+        exit_rect = pygame.Rect(0, 0, button_w, button_h)
+        # stack them in the middle with a gap between
+        continue_rect.center = (w // 2, h // 2 - 60)
+        exit_rect.center = (w // 2, h // 2 + 60)
+        return continue_rect, exit_rect
+
+    # draws the "Continue?" and "Exit" buttons
+    def draw_menu(self, screen):
+        screen.fill((0, 0, 0))
+        continue_rect, exit_rect = self.get_buttons()
+        mouse_pos = pygame.mouse.get_pos()
+
+        for rect, label in ((continue_rect, "Try Again?"), (exit_rect, "Exit")):
+            # lighten the button when the mouse is over it
+            color = (170, 0, 0) if rect.collidepoint(mouse_pos) else (110, 0, 0)
+            pygame.draw.rect(screen, color, rect, border_radius=12)
+            pygame.draw.rect(screen, (255, 255, 255), rect, 3, border_radius=12)
+            text = self.font.render(label, True, (255, 255, 255))
+            screen.blit(text, text.get_rect(center=rect.center))
+
+    # checks which button was clicked: returns 'continue', 'exit', or None
+    def handle_click(self, pos):
+        # ignore clicks while the jumpscare is still playing
+        if not self.is_menu_showing():
+            return None
+        continue_rect, exit_rect = self.get_buttons()
+        if continue_rect.collidepoint(pos):
+            return 'continue'
+        if exit_rect.collidepoint(pos):
+            return 'exit'
+        return None
