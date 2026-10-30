@@ -8,13 +8,15 @@ class Jumpscare:
         self.duration = duration_ms
         self.start_ms = None
         self.image = None
+        self.raw_image = None
         self.sound = None
         self.font = pygame.font.SysFont("impact", 50)
 
         # if you add img/jumpscare.png, it will be used instead of the drawn face
         if os.path.exists('img/jumpscare.png'):
-            img = pygame.image.load('img/jumpscare.png')
-            self.image = pygame.transform.scale(img, screen_size)
+            # keep the original so we can rescale it later without losing quality
+            self.raw_image = pygame.image.load('img/jumpscare.png')
+        self.resize(screen_size)
 
         # if you add sounds/scream.wav (or .ogg), it plays when the jumpscare starts
         for path in ('sounds/scream.wav', 'sounds/scream.ogg'):
@@ -25,6 +27,13 @@ class Jumpscare:
                     # no audio device available, so just skip the sound
                     self.sound = None
                 break
+
+    # adapts the jumpscare to a new screen size
+    def resize(self, screen_size):
+        self.screen_size = screen_size
+        # stretch the image to fill the new size
+        if self.raw_image:
+            self.image = pygame.transform.scale(self.raw_image, screen_size)
 
     # starts the jumpscare
     def trigger(self):

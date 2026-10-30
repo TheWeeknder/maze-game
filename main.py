@@ -11,18 +11,36 @@ pygame.init()
 pygame.font.init()
 
 class Main():
-    def __init__(self, screen):
-        self.screen = screen
+    def __init__(self, window, game_size):
+        # the real display (your whole monitor)
+        self.window = window
+        # the maze is drawn on this smaller surface, then scaled up onto the window
+        self.screen = pygame.Surface(game_size)
         self.font = pygame.font.SysFont("impact", 30)
         self.message_color = pygame.Color("cyan")
         self.running = True
         self.game_over = False
-        self.FPS = pygame.time.Clock()
-
-        # set to True when the player runs out of time
         self.failed = False
         # seconds the player has to finish the maze
-        self.time_limit = 30
+        self.time_limit = 60
+        self.FPS = pygame.time.Clock()
+
+    # works out how much to scale the game so it fits the monitor
+    def get_scale_and_offset(self):
+        win_w, win_h = self.window.get_size()
+        game_w, game_h = self.screen.get_size()
+        # scale as much as possible without stretching the picture
+        scale = min(win_w / game_w, win_h / game_h)
+        new_size = (int(game_w * scale), int(game_h * scale))
+        # offset centers the game, leaving black bars on the sides if needed
+        offset = ((win_w - new_size[0]) // 2, (win_h - new_size[1]) // 2)
+        return scale, offset, new_size
+
+    # converts the mouse position on the monitor into game coordinates
+    def get_game_mouse(self):
+        scale, offset, _ = self.get_scale_and_offset()
+        mx, my = pygame.mouse.get_pos()
+        return ((mx - offset[0]) / scale, (my - offset[1]) / scale)
 
     def instructions(self):
         instructions1 = self.font.render('Use', True, self.message_color)
@@ -55,7 +73,14 @@ class Main():
 
         # draw the jumpscare on top of everything
         if self.failed:
-            jumpscare.draw(self.screen)
+            # the jumpscare draws straight onto the full monitor
+            jumpscare.draw(self.window)
+        else:
+            # scale the game up and center it on the monitor
+            scale, offset, new_size = self.get_scale_and_offset()
+            self.window.fill((0, 0, 0))
+            scaled = pygame.transform.smoothscale(self.screen, new_size)
+            self.window.blit(scaled, offset)
         pygame.display.flip()
 
     # main game loop
@@ -66,7 +91,7 @@ class Main():
         player = Player(tile // 3, tile // 3)
         clock = Clock()
 
-        jumpscare = Jumpscare(self.screen.get_size())
+        jumpscare = Jumpscare(self.window.get_size())
 
         maze.generate_maze()
         clock.start_timer()
@@ -74,7 +99,11 @@ class Main():
             self.screen.fill("gray")
             self.screen.fill( pygame.Color("darkslategray"), (603, 0, 752, 752))
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                # F11 switches between fullscreen and windowed
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                    pygame.display.toggle_fullscreen()
+                # Esc closes the game
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
             # # if keys were pressed still
@@ -106,7 +135,7 @@ class Main():
             # only let the player move while the game is still going
             if not self.game_over and not self.failed:
                 # set the movement flags from the mouse position
-                player.follow_mouse(pygame.mouse.get_pos())
+                player.follow_mouse(self.get_game_mouse())
 
             # check if the player has reached the gate
             if not self.failed and game.is_game_over(player):
@@ -137,10 +166,12 @@ class Main():
 
 if __name__ == "__main__":
     window_size = (602, 602)
-    screen = (window_size[0] + 150, window_size[-1])
+    # the maze area plus the sidebar on the right
+    game_size = (window_size[0] + 150, window_size[-1])
     tile_size = 30
-    screen = pygame.display.set_mode(screen)
+    # (0, 0) means "use my monitor's resolution"
+    window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     pygame.display.set_caption("Maze")
 
-    game = Main(screen)
+    game = Main(window, game_size)
     game.main(window_size, tile_size)
