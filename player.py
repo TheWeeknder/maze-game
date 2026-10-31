@@ -19,7 +19,7 @@ class Player:
         self.right_pressed = False
         self.up_pressed = False
         self.down_pressed = False
-        self.speed = 2.5
+        self.speed = 2.0
 
     # get current cell position of the player
     def get_current_cell(self, x, y, grid_cells):
